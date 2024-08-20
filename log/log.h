@@ -1,5 +1,5 @@
-#ifndef LOG_H
-#define LOG_H
+#ifndef LOGG_H
+#define LOGG_H
 
 #include <iostream>
 #include <fstream>
@@ -11,16 +11,18 @@
 #include <iomanip>
 #include <sstream>
 
+// 日志级别
+enum class LogLevel
+{
+    INFO,
+    WARNING,
+    ERROR
+};
+
 class Logger
 {
 public:
-    // 日志级别
-    enum class LogLevel
-    {
-        INFO,
-        WARNING,
-        ERROR
-    };
+    
 
     // 获取 Logger 实例
     static Logger &getInstance()
