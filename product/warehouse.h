@@ -7,6 +7,7 @@
 #include <memory>
 #include <mutex>
 #include <iostream>
+#include "log/logg.h"
 
 template <typename T>
 class Warehouse
@@ -22,7 +23,7 @@ public:
             throw WarehouseException("产品ID已存在: " + std::to_string(id));
         }
         products_[id] = std::move(product);
-        std::cout << "添加产品: " << products_[id]->getName() << " 数量: " << products_[id]->getQuantity() << "\n";
+        Logger::getInstance().log(LogLevel::INFO, std::string("添加产品: ") + products_[id]->getName() + std::string(" 数量: ") + std::to_string(products_[id]->getQuantity()));
     }
 
     // 删除产品
@@ -32,7 +33,7 @@ public:
         auto it = products_.find(id);
         if (it != products_.end())
         {
-            std::cout << "移除产品: " << it->second->getName() << "\n";
+            Logger::getInstance().log(LogLevel::INFO, std::string("移除产品: ") + it->second->getName());
             products_.erase(it);
         }
         else
@@ -50,13 +51,14 @@ public:
         {
             it->second->setPrice(price);
             it->second->setQuantity(quantity);
-            std::cout << "更新产品: " << it->second->getName() << " 新名称: " << name << " 新价格: " << price << " 新数量: " << quantity << "\n";
+            Logger::getInstance().log(LogLevel::INFO, std::string("更新产品: ") + it->second->getName() + std::string(" 新价格: ") + std::to_string(price) + std::string(" 新数量: ") + std::to_string(quantity));
         }
         else
         {
             throw WarehouseException("产品ID不存在: " + std::to_string(id));
         }
     }
+
 
     // 检索产品信息
     std::shared_ptr<Product<T>> getProduct(size_t id)
@@ -73,21 +75,44 @@ public:
         }
     }
 
+
     // 列出所有产品
     void listProducts() const
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (products_.empty())
         {
-            std::cout << "仓库中没有产品。\n";
+            Logger::getInstance().log(LogLevel::INFO, std::string("仓库中没有产品。"));
         }
         else
         {
-            std::cout << "产品列表:\n";
+            Logger::getInstance().log(LogLevel::INFO, std::string("产品列表:"));
             for (const auto &product : products_)
             {
-                std::cout << "ID: " << product.first << " 名称: " << product.second->getName() << " 数量: " << product.second->getQuantity() << "\n";
+                Logger::getInstance().log(LogLevel::INFO, "ID: " + std::to_string(product.first) + " 名称: " + product.second->getName() + " 数量: " + std::to_string(product.second->getQuantity()));
             }
+        }
+    }
+
+    void inventoryCheckThread(int checkInterval, int lowStockThreshold)
+    {
+        
+        Logger::getInstance().log(LogLevel::INFO, std::string("开始库存检查..."));
+        try
+        {
+            for (const auto &productPair : products_)
+            {
+                if (productPair.second->getQuantity() < lowStockThreshold)
+                {
+                    Logger::getInstance().log(LogLevel::WARNING, std::string("库存不足 - ID: ") + std::to_string(productPair.first) + std::string(" 名称: ") + productPair.second->getName() + std::string(" 数量: ") + std::to_string(productPair.second->getQuantity()));
+                }else {
+                    Logger::getInstance().log(LogLevel::INFO, std::string("库存正常 - ID: ") + std::to_string(productPair.first) + std::string(" 名称: ") + productPair.second->getName() + std::string(" 数量: ") + std::to_string(productPair.second->getQuantity()));
+                }
+            }
+        }
+        catch (const WarehouseException &e)
+        {
+            Logger::getInstance().log(LogLevel::ERROR, std::string("库存检查线程错误: ") + e.what());
         }
     }
 
