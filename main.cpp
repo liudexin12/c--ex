@@ -4,6 +4,7 @@
 // #include <atomic>
 // #include <utility>
 #include "product/warehouse.h"
+#include "product/warehouse_test.cpp"
 #include <thread>
 #include <vector>
 #include <random>
@@ -14,6 +15,7 @@
 #include <functional>
 #include <sstream>
 #include "log/logg.h"
+#include "test/test.h"
 // #include "log/logg.h"
 
 // 供应商线程函数
@@ -142,42 +144,42 @@ private:
 //     return 0;
 // }
 
-int main()
-{
-    Warehouse<double> warehouse;
+// int main()
+// {
+//     Warehouse<double> warehouse;
 
-    // 添加一些产品
-    try
-    {
-        warehouse.addProduct(std::make_unique<Product<double>>(1, "Product A", 99.99, 100));
-        warehouse.addProduct(std::make_unique<Product<double>>(2, "Product B", 49.99, 200));
-    }
-    catch (const WarehouseException &e)
-    {
-        Logger::getInstance().log(LogLevel::ERROR,std::string("添加产品错误: ") + e.what());
-    }
+//     // 添加一些产品
+//     try
+//     {
+//         warehouse.addProduct(std::make_unique<Product<double>>(1, "Product A", 99.99, 100));
+//         warehouse.addProduct(std::make_unique<Product<double>>(2, "Product B", 49.99, 200));
+//     }
+//     catch (const WarehouseException &e)
+//     {
+//         Logger::getInstance().log(LogLevel::ERROR,std::string("添加产品错误: ") + e.what());
+//     }
 
-    // 创建供应商线程
-    std::vector<std::thread> supplierThreads;
-    for (int i = 0; i < 3; ++i)
-    {
-        supplierThreads.emplace_back(supplierThread<double>, std::ref(warehouse), i, 1, -10, 10);
-    }
+//     // 创建供应商线程
+//     std::vector<std::thread> supplierThreads;
+//     for (int i = 0; i < 3; ++i)
+//     {
+//         supplierThreads.emplace_back(supplierThread<double>, std::ref(warehouse), i, 1, -10, 10);
+//     }
 
-    // 创建库存检查线程
-    std::thread inventoryThread(inventoryCheckThread<double>, std::ref(warehouse), 5, 100);
+//     // 创建库存检查线程
+//     std::thread inventoryThread(inventoryCheckThread<double>, std::ref(warehouse), 5, 100);
 
-    // 等待所有供应商线程完成（在这个示例中，它们将永远运行）
-    for (auto &thread : supplierThreads)
-    {
-        thread.join();
-    }
+//     // 等待所有供应商线程完成（在这个示例中，它们将永远运行）
+//     for (auto &thread : supplierThreads)
+//     {
+//         thread.join();
+//     }
 
-    // 等待库存检查线程完成（在这个示例中，它将永远运行）
-    inventoryThread.join();
+//     // 等待库存检查线程完成（在这个示例中，它将永远运行）
+//     inventoryThread.join();
 
-    return 0;
-}
+//     return 0;
+// }
 
 // int main()
 // {
@@ -200,3 +202,11 @@ int main()
 //     logger.log(LogLevel::INFO,std::string("开始运行"));
 //     return 0;
 // }
+
+int main() {
+    TestRunner runner;
+    runner.addTest("testAddProduct", testAddProduct);
+    runner.addTest("testUpdateQuantity", testUpdateQuantity);
+    runner.run();
+    return 0;
+}
