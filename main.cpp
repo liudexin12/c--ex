@@ -13,6 +13,8 @@
 #include <map>
 #include <functional>
 #include <sstream>
+#include "log/logg.h"
+// #include "log/logg.h"
 
 // 供应商线程函数
 template <typename T>
@@ -26,13 +28,13 @@ void supplierThread(Warehouse<T> &warehouse, int supplierId, size_t productId, i
     {
         int updateAmount = dis(gen);
         try
-        {
+        {   
             auto product = warehouse.getProduct(productId);
             warehouse.updateProduct(productId, product->getName(), product->getPrice(), product->getQuantity() + updateAmount);
         }
         catch (const WarehouseException &e)
         {
-            std::cerr << "供应商线程错误: " << e.what() << "\n";
+            Logger::getInstance().log(LogLevel::ERROR,std::string("供应商线程错误: ") + e.what());
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // 模拟供应商更新频率
     }
@@ -41,26 +43,11 @@ void supplierThread(Warehouse<T> &warehouse, int supplierId, size_t productId, i
 // 库存检查线程函数
 template <typename T>
 void inventoryCheckThread(Warehouse<T> &warehouse, int checkInterval, int lowStockThreshold)
-{
+{   
     while (true)
     {
         std::this_thread::sleep_for(std::chrono::seconds(checkInterval));
-        std::cout << "库存检查:\n";
-        try
-        {
-            warehouse.listProducts();
-            for (const auto &productPair : warehouse.getProducts())
-            {
-                if (productPair.second->getQuantity() < lowStockThreshold)
-                {
-                    std::cout << "库存不足 - ID: " << productPair.first << " 名称: " << productPair.second->getName() << " 数量: " << productPair.second->getQuantity() << "\n";
-                }
-            }
-        }
-        catch (const WarehouseException &e)
-        {
-            std::cerr << "库存检查线程错误: " << e.what() << "\n";
-        }
+        warehouse.inventoryCheckThread(checkInterval, lowStockThreshold);
     }
 }
 
@@ -68,7 +55,7 @@ void inventoryCheckThread(Warehouse<T> &warehouse, int checkInterval, int lowSto
 class CommandParser
 {
 public:
-    CommandParser(Warehouse &warehouse) : warehouser_(warehouse)
+    CommandParser(Warehouse<double> &warehouse) : warehouser_(warehouse)
     {
         commands_["add"] = [this](const std::string &args)
         { this->addCommand(args); };
@@ -104,11 +91,12 @@ private:
 
         size_t id;        // 产品ID
         std::string name; // 产品名称
-        float price;      // 产品价格
+        double price;      // 产品价格
         int quantity;     // 库存
         iss >> id >> name >> price >> quantity;
-        std::unique_ptr < Product<T> p(id, name, price, quantity);
-        warehouser_.addProduct();
+        Product<double>* product = new Product<double>(id, name, price, quantity);
+        std::unique_ptr < Product<double>> p(product);
+        warehouser_.addProduct(std::move(p));
     }
 
     void deleteCommand(const std::string &args)
@@ -124,72 +112,72 @@ private:
         std::istringstream iss(args);
         size_t id;        // 产品ID
         std::string name; // 产品名称
-        float price;      // 产品价格
+        double price;      // 产品价格
         int quantity;     // 库存
         iss >> id >> name >> price >> quantity;
         warehouser_.updateProduct(id, name, price, quantity);
     }
 
-    Warehouse &warehouser_;
+    Warehouse<double> &warehouser_;
     std::map<std::string, std::function<void(const std::string &)>> commands_;
 };
-
-int main()
-{
-    Warehouse warehouse;
-    CommandParser parser(warehouse);
-
-    std::string input;
-    while (true)
-    {
-        std::cout << "Enter command: ";
-        std::getline(std::cin, input);
-        if (input == "exit")
-        {
-            break;
-        }
-        parser.parseCommand(input);
-    }
-
-    return 0;
-}
 
 // int main()
 // {
 //     Warehouse<double> warehouse;
+//     CommandParser parser(warehouse);
 
-//     // 添加一些产品
-//     try
+//     std::string input;
+//     while (true)
 //     {
-//         warehouse.addProduct(std::make_unique<Product<double>>(1, "Product A", 99.99, 100));
-//         warehouse.addProduct(std::make_unique<Product<double>>(2, "Product B", 49.99, 200));
+//         std::cout << "Enter command: ";
+//         std::getline(std::cin, input);
+//         if (input == "exit")
+//         {
+//             break;
+//         }
+//         parser.parseCommand(input);
 //     }
-//     catch (const WarehouseException &e)
-//     {
-//         std::cerr << "添加产品错误: " << e.what() << "\n";
-//     }
-
-//     // 创建供应商线程
-//     std::vector<std::thread> supplierThreads;
-//     for (int i = 0; i < 3; ++i)
-//     {
-//         supplierThreads.emplace_back(supplierThread<double>, std::ref(warehouse), i, 1, -10, 20);
-//     }
-
-//     // 创建库存检查线程
-//     std::thread inventoryThread(inventoryCheckThread<double>, std::ref(warehouse), 5, 50);
-
-//     // 等待所有供应商线程完成（在这个示例中，它们将永远运行）
-//     for (auto &thread : supplierThreads)
-//     {
-//         thread.join();
-//     }
-
-//     // 等待库存检查线程完成（在这个示例中，它将永远运行）
-//     inventoryThread.join();
 
 //     return 0;
 // }
+
+int main()
+{
+    Warehouse<double> warehouse;
+
+    // 添加一些产品
+    try
+    {
+        warehouse.addProduct(std::make_unique<Product<double>>(1, "Product A", 99.99, 100));
+        warehouse.addProduct(std::make_unique<Product<double>>(2, "Product B", 49.99, 200));
+    }
+    catch (const WarehouseException &e)
+    {
+        Logger::getInstance().log(LogLevel::ERROR,std::string("添加产品错误: ") + e.what());
+    }
+
+    // 创建供应商线程
+    std::vector<std::thread> supplierThreads;
+    for (int i = 0; i < 3; ++i)
+    {
+        supplierThreads.emplace_back(supplierThread<double>, std::ref(warehouse), i, 1, -10, 10);
+    }
+
+    // 创建库存检查线程
+    std::thread inventoryThread(inventoryCheckThread<double>, std::ref(warehouse), 5, 100);
+
+    // 等待所有供应商线程完成（在这个示例中，它们将永远运行）
+    for (auto &thread : supplierThreads)
+    {
+        thread.join();
+    }
+
+    // 等待库存检查线程完成（在这个示例中，它将永远运行）
+    inventoryThread.join();
+
+    return 0;
+}
 
 // int main()
 // {
@@ -204,5 +192,11 @@ int main()
 //     Product<double> product2(std::move(product1));
 //     std::cout << "Moved Product - ID: " << product2.getId() << ", Name: " << product2.getName() << ", Price: " << product2.getPrice() << ", Quantity: " << product2.getQuantity() << std::endl;
 
+//     return 0;
+// }
+
+// int main()
+// {
+//     logger.log(LogLevel::INFO,std::string("开始运行"));
 //     return 0;
 // }
