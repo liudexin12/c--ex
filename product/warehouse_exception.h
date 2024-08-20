@@ -3,6 +3,7 @@
 
 #include <exception>
 #include <string>
+#include "log/logg.h"
 
 class WarehouseException : public std::exception
 {
