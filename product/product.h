@@ -5,6 +5,7 @@
 #include <string>
 #include <atomic>
 #include <utility>
+#include "log/logg.h"
 
 template <typename T>
 class Product
@@ -23,6 +24,12 @@ public:
         other.quantity_ = 0;
     }
 
+    //拷贝构造函数
+    Product(const Product& other)
+        : id_(other.id_), name_(std::move(other.name_)), price_(other.price_), quantity_(other.quantity_.load())
+    {
+    }
+
     // 移动赋值运算符
     Product &operator=(Product &&other) noexcept
     {
@@ -38,8 +45,8 @@ public:
     }
 
     // 禁用拷贝构造函数和拷贝赋值运算符
-    Product(const Product &) = delete;
-    Product &operator=(const Product &) = delete;
+    // Product(const Product &) = delete;
+    // Product &operator=(const Product &) = delete;
 
     // 析构函数
     ~Product() = default;
